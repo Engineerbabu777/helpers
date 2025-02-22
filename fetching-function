@@ -1,0 +1,33 @@
+export async function fetcher(
+  url: string,
+  options: RequestInit = {},
+  retries = 3
+): Promise<any> {
+  try {
+    const res = await fetch(`${process.env.STRAPI_URL}${url}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+      cache: "force-cache",
+      next: { revalidate: 3600 },
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Fetch failed: ${res.status} - ${errorText}`);
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.error(`[Fetch Error] ${url}:`, error);
+
+    if (retries > 0) {
+      console.warn(`Retrying... (${4 - retries}/3)`);
+      return fetcher(url, options, retries - 1);
+    }
+
+    throw error;
+  }
+}
